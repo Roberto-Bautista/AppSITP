@@ -7,12 +7,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.auth.FirebaseAuth
-import com.sitp.arequipa.ui.auth.LoginScreen
-import com.sitp.arequipa.ui.auth.RegisterScreen
-import com.sitp.arequipa.ui.auth.ForgotPasswordScreen
-import com.sitp.arequipa.ui.map.MapScreen
-import com.sitp.arequipa.ui.theme.SistemaTransporteArequipaTheme
-import com.sitp.arequipa.viewmodel.AuthViewModel
+import com.sitp.arequipa.presentation.auth.LoginScreen
+import com.sitp.arequipa.presentation.auth.RegisterScreen
+import com.sitp.arequipa.presentation.auth.ForgotPasswordScreen
+import com.sitp.arequipa.presentation.map.MapScreen
+import com.sitp.arequipa.presentation.theme.SistemaTransporteArequipaTheme
+import com.sitp.arequipa.presentation.auth.AuthViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

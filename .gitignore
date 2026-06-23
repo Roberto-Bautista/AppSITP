@@ -13,3 +13,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# API Keys - NUNCA subir al repositorio
+gradle.properties
+
+# Firebase config - NUNCA subir al repositorio
+app/google-services.json
