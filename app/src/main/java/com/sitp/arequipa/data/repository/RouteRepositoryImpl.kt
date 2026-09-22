@@ -29,6 +29,8 @@ class RouteRepositoryImpl private constructor(
                     avenidas = r.ruta.avenidas,
                     avenidaVuelta = r.ruta.avenidaVuelta,
                     color = r.ruta.color,
+                    etiqueta = r.ruta.etiqueta,
+                    frecuencia = r.ruta.frecuencia,
                     coordsIda = r.coordenadas
                         .filter { it.tipo == "IDA" }
                         .sortedBy { it.orden }
@@ -45,6 +47,25 @@ class RouteRepositoryImpl private constructor(
     override suspend fun sincronizarConServidor(): Unit = withContext(Dispatchers.IO) {
         try {
             val documents = remoteSource.descargarRutas()
+            if (documents.isEmpty()) return@withContext
+
+            // 1. Verificar si las versiones locales coinciden con las remotas
+            val rutasLocales = rutaDao.obtenerRutasSync().associate { it.codigo to it.version }
+            val hayCambios = rutasLocales.isEmpty() ||
+                rutasLocales.size != documents.size ||
+                documents.any { doc ->
+                    val codigo = doc.getString("codigo") ?: return@any true
+                    val versionRemota = doc.getLong("version") ?: 1L
+                    rutasLocales[codigo] != versionRemota
+                }
+
+            if (!hayCambios) {
+                println("DEBUG RouteRepository: Rutas locales ya sincronizadas (versiones coinciden). Omitiendo reescritura de Room.")
+                return@withContext
+            }
+
+            println("DEBUG RouteRepository: Actualización de rutas detectada. Sincronizando con Room SQLite...")
+
             val rutasEntities = mutableListOf<RutaEntity>()
             val coordenadasEntities = mutableListOf<CoordenadaEntity>()
 
@@ -55,7 +76,9 @@ class RouteRepositoryImpl private constructor(
                 val avenidas = doc.getString("avenidas") ?: ""
                 val avenidaVuelta = doc.getString("avenidaVuelta") ?: ""
                 val color = doc.getString("color") ?: ""
-                val version = doc.getLong("version") ?: 0L
+                val etiqueta = doc.getString("etiqueta") ?: doc.getString("etiquetas") ?: ""
+                val frecuencia = doc.getString("frecuencia") ?: ""
+                val version = doc.getLong("version") ?: 1L
 
                 rutasEntities.add(
                     RutaEntity(
@@ -65,6 +88,8 @@ class RouteRepositoryImpl private constructor(
                         avenidas = avenidas,
                         avenidaVuelta = avenidaVuelta,
                         color = color,
+                        etiqueta = etiqueta,
+                        frecuencia = frecuencia,
                         version = version
                     )
                 )
@@ -108,6 +133,7 @@ class RouteRepositoryImpl private constructor(
 
             if (rutasEntities.isNotEmpty()) {
                 rutaDao.actualizarCache(rutasEntities, coordenadasEntities)
+                println("DEBUG RouteRepository: Room SQLite actualizado con ${rutasEntities.size} rutas y ${coordenadasEntities.size} coordenadas.")
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -119,7 +145,7 @@ class RouteRepositoryImpl private constructor(
         @Volatile
         private var INSTANCE: RouteRepositoryImpl? = null
 
-        fun getInstance(context: Context): RouteRepositoryImpl {
+        fun getInstance(context: Context): RouteRepository {
             return INSTANCE ?: synchronized(this) {
                 val db = AppDatabase.getDatabase(context)
                 val remote = FirestoreRouteSource()

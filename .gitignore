@@ -19,3 +19,4 @@ gradle.properties
 
 # Firebase config - NUNCA subir al repositorio
 app/google-services.json
+serviceAccountKey.json

@@ -22,6 +22,9 @@ interface RutaDao {
     @Query("SELECT * FROM rutas")
     fun obtenerTodasLasRutasConCoordenadas(): Flow<List<com.sitp.arequipa.data.local.entity.RutaConCoordenadas>>
 
+    @Query("SELECT * FROM rutas")
+    fun obtenerRutasSync(): List<RutaEntity>
+
     @Query("SELECT * FROM coordenadas WHERE rutaCodigo = :rutaCodigo ORDER BY orden ASC")
     fun obtenerCoordenadasDeRuta(rutaCodigo: String): List<CoordenadaEntity>
 

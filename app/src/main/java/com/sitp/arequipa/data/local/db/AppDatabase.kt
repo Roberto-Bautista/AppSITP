@@ -9,7 +9,7 @@ import com.sitp.arequipa.data.local.entity.RutaEntity
 
 @Database(
     entities = [RutaEntity::class, CoordenadaEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
