@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.sitp.arequipa.di.provideViewModelFactory
 
 private val RegRed = Color(0xFFB71C1C)
 private val RegFieldBg = Color(0xFFEEEEEE)
@@ -37,7 +38,7 @@ private val RegLabelGray = Color(0xFF9E9E9E)
 fun RegisterScreen(
     onRegisterSuccess: () -> Unit,
     onGoToLogin: () -> Unit,
-    authViewModel: AuthViewModel = viewModel()
+    authViewModel: AuthViewModel = viewModel(factory = provideViewModelFactory())
 ) {
     var nombre by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }

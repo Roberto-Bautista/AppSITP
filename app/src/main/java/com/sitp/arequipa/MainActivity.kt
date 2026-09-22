@@ -6,7 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.google.firebase.auth.FirebaseAuth
+import com.sitp.arequipa.di.provideViewModelFactory
 import com.sitp.arequipa.presentation.auth.LoginScreen
 import com.sitp.arequipa.presentation.auth.RegisterScreen
 import com.sitp.arequipa.presentation.auth.ForgotPasswordScreen
@@ -28,11 +28,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AppNavigation() {
-    val authViewModel: AuthViewModel = viewModel()
+    val authViewModel: AuthViewModel = viewModel(factory = provideViewModelFactory())
 
-    // Si ya hay una sesión activa y el email está verificado, ir directo al mapa
-    val usuarioActual = FirebaseAuth.getInstance().currentUser
-    val pantallaInicial = if (usuarioActual != null && usuarioActual.isEmailVerified) "map" else "login"
+    // Sesión activa verificada vía VerificarSesionUseCase (Clean Architecture)
+    val sesionActiva = authViewModel.sesionActiva()
+    val pantallaInicial = if (sesionActiva) "map" else "login"
 
     var currentScreen by remember { mutableStateOf(pantallaInicial) }
 
@@ -77,4 +77,4 @@ fun AppNavigation() {
             }
         }
     }
-}
+}

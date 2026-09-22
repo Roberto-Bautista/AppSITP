@@ -22,11 +22,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
+import com.sitp.arequipa.di.provideViewModelFactory
 import com.sitp.arequipa.presentation.historial.HistorialViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.tasks.await
 
 // ── Paleta del perfil ─────────────────────────────────────────────────────────
 private val ProfRed    = Color(0xFFC62828)
@@ -49,46 +47,29 @@ private fun generoSymbol(genero: String): Pair<String, Color> = when (
 @Composable
 fun PerfilScreen(
     onBack: () -> Unit,
-    onLogout: () -> Unit = {}
+    onLogout: () -> Unit = {},
+    perfilViewModel: PerfilViewModel = viewModel(factory = provideViewModelFactory()),
+    historialViewModel: HistorialViewModel = viewModel(factory = provideViewModelFactory())
 ) {
-    val auth = FirebaseAuth.getInstance()
-    val db   = FirebaseFirestore.getInstance()
-    val user = auth.currentUser
-
-    val historialViewModel: HistorialViewModel = viewModel()
+    val uiState by perfilViewModel.uiState.collectAsState()
     val historial by historialViewModel.historial.collectAsState()
-    val scope = rememberCoroutineScope()
 
-    var nombre    by remember { mutableStateOf("") }
-    var email     by remember { mutableStateOf(user?.email ?: "") }
-    var genero    by remember { mutableStateOf("") }
-    var edad      by remember { mutableStateOf("") }
-    var distrito  by remember { mutableStateOf("") }
-    var comentariosCount by remember { mutableIntStateOf(0) }
+    val perfil = (uiState as? PerfilUiState.Success)?.perfil
+    val nombre = perfil?.nombre ?: ""
+    val email = perfil?.email ?: ""
+    val genero = perfil?.genero ?: ""
+    val edad = perfil?.edad ?: ""
+    val distrito = perfil?.distrito ?: ""
+    val comentariosCount = perfil?.comentariosCount ?: 0
 
     // Estado de edición de nombre
     var editandoNombre by remember { mutableStateOf(false) }
-    var nuevoNombre    by remember { mutableStateOf("") }
+    var nuevoNombre by remember { mutableStateOf("") }
 
     // ── Cargar datos ──────────────────────────────────────────────────────
     LaunchedEffect(Unit) {
         historialViewModel.cargarHistorial()
-
-        user?.uid?.let { uid ->
-            // Datos del perfil
-            val doc = db.collection("usuarios").document(uid).get().await()
-            nombre   = doc.getString("nombre")       ?: ""
-            nuevoNombre = nombre
-            genero   = doc.getString("genero")       ?: ""
-            edad     = doc.getLong("edad")?.toString() ?: ""
-            distrito = doc.getString("distrito")     ?: ""
-
-            // Conteo de comentarios del usuario
-            val comsSnap = db.collection("comentarios")
-                .whereEqualTo("usuarioId", uid)
-                .get().await()
-            comentariosCount = comsSnap.size()
-        }
+        perfilViewModel.cargarPerfil()
     }
 
     // ── Iniciales del avatar ──────────────────────────────────────────────
@@ -173,14 +154,8 @@ fun PerfilScreen(
                         onClick = {
                             val trimmed = nuevoNombre.trim()
                             if (trimmed.isNotEmpty()) {
-                                scope.launch {
-                                    user?.uid?.let { uid ->
-                                        db.collection("usuarios").document(uid)
-                                            .update("nombre", trimmed).await()
-                                        nombre = trimmed
-                                    }
-                                    editandoNombre = false
-                                }
+                                perfilViewModel.actualizarNombre(trimmed)
+                                editandoNombre = false
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = ProfRed)

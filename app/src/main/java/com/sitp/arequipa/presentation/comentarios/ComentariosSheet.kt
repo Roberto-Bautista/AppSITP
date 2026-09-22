@@ -11,7 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.google.firebase.auth.FirebaseAuth
+import com.sitp.arequipa.di.provideViewModelFactory
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -22,11 +22,10 @@ fun ComentariosSheet(
     rutaNombre: String,
     rutaCodigo: String,
     onDismiss: () -> Unit,
-    comentarioViewModel: ComentarioViewModel = viewModel()
+    comentarioViewModel: ComentarioViewModel = viewModel(factory = provideViewModelFactory())
 ) {
     val comentarios by comentarioViewModel.comentarios.collectAsState()
     val comentarioState by comentarioViewModel.comentarioState.collectAsState()
-    val user = FirebaseAuth.getInstance().currentUser
     var textoComentario by remember { mutableStateOf("") }
 
     LaunchedEffect(rutaId) {
@@ -67,8 +66,8 @@ fun ComentariosSheet(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(comentarios) { comentario ->
-                        val fecha = comentario.fecha?.toDate()?.let {
-                            SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(it)
+                        val fecha = comentario.fecha?.let {
+                            SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(it))
                         } ?: ""
 
                         Card(
@@ -99,7 +98,7 @@ fun ComentariosSheet(
             Divider()
 
             // Campo para nuevo comentario
-            if (user != null) {
+            if (comentarioViewModel.sesionActiva) {
                 Text("Deja tu opinión:", style = MaterialTheme.typography.labelLarge)
 
                 OutlinedTextField(

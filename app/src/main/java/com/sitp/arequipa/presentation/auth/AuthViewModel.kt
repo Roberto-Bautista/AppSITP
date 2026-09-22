@@ -2,35 +2,41 @@ package com.sitp.arequipa.presentation.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
+import com.sitp.arequipa.domain.model.LoginResult
+import com.sitp.arequipa.domain.usecase.LoginUseCase
+import com.sitp.arequipa.domain.usecase.LogoutUseCase
+import com.sitp.arequipa.domain.usecase.RecuperarPasswordUseCase
+import com.sitp.arequipa.domain.usecase.ReenviarVerificacionUseCase
+import com.sitp.arequipa.domain.usecase.RegisterUseCase
+import com.sitp.arequipa.domain.usecase.VerificarSesionUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
-class AuthViewModel : ViewModel() {
-
-    private val auth = FirebaseAuth.getInstance()
-    private val db = FirebaseFirestore.getInstance()
+class AuthViewModel(
+    private val loginUseCase: LoginUseCase,
+    private val registerUseCase: RegisterUseCase,
+    private val recuperarPasswordUseCase: RecuperarPasswordUseCase,
+    private val reenviarVerificacionUseCase: ReenviarVerificacionUseCase,
+    private val logoutUseCase: LogoutUseCase,
+    private val verificarSesionUseCase: VerificarSesionUseCase
+) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState
+
+    fun sesionActiva(): Boolean = verificarSesionUseCase()
 
     fun login(email: String, password: String) {
         viewModelScope.launch {
             try {
                 _authState.value = AuthState.Loading
-                val result = auth.signInWithEmailAndPassword(email, password).await()
-                println("DEBUG isEmailVerified: ${result.user?.isEmailVerified}")
-                if (result.user?.isEmailVerified == false) {
-                    auth.signOut()
-                    _authState.value = AuthState.Error(
+                when (loginUseCase(email, password)) {
+                    LoginResult.Exito -> _authState.value = AuthState.Success
+                    LoginResult.EmailNoVerificado -> _authState.value = AuthState.Error(
                         "Debes verificar tu email antes de ingresar. Revisa tu bandeja de entrada."
                     )
-                    return@launch
                 }
-                _authState.value = AuthState.Success
             } catch (e: Exception) {
                 val mensaje = when {
                     e.message?.contains("no user record") == true ->
@@ -57,22 +63,7 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 _authState.value = AuthState.Loading
-                val result = auth.createUserWithEmailAndPassword(email, password).await()
-
-                val usuario = hashMapOf(
-                    "nombre" to nombre,
-                    "email" to email,
-                    "genero" to genero,
-                    "edad" to edad,
-                    "distrito" to distrito,
-                    "fechaRegistro" to com.google.firebase.Timestamp.now()
-                )
-                db.collection("usuarios")
-                    .document(result.user!!.uid)
-                    .set(usuario)
-                    .await()
-
-                result.user!!.sendEmailVerification().await()
+                registerUseCase(nombre, email, password, genero, edad, distrito)
                 _authState.value = AuthState.Success
             } catch (e: Exception) {
                 val mensaje = when {
@@ -92,7 +83,8 @@ class AuthViewModel : ViewModel() {
     fun recuperarPassword(email: String) {
         viewModelScope.launch {
             try {
-                auth.sendPasswordResetEmail(email).await()
+                _authState.value = AuthState.Loading
+                recuperarPasswordUseCase(email)
                 _authState.value = AuthState.PasswordResetSent
             } catch (e: Exception) {
                 _authState.value = AuthState.Error("Error al enviar email")
@@ -101,14 +93,14 @@ class AuthViewModel : ViewModel() {
     }
 
     fun logout() {
-        auth.signOut()
+        logoutUseCase()
         _authState.value = AuthState.Idle
     }
 
     fun reenviarVerificacion(email: String) {
         viewModelScope.launch {
             try {
-                auth.currentUser?.sendEmailVerification()?.await()
+                reenviarVerificacionUseCase()
                 _authState.value = AuthState.Error("Email de verificación reenviado ✅")
             } catch (e: Exception) {
                 _authState.value = AuthState.Error("Error al reenviar el email")

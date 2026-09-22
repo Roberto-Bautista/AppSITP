@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.sitp.arequipa.di.provideViewModelFactory
 
 private val SITPRed = Color(0xFFB71C1C)
 private val SITPRedLight = Color(0xFFD32F2F)
@@ -34,7 +35,7 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onGoToRegister: () -> Unit,
     onGoToForgotPassword: () -> Unit,
-    authViewModel: AuthViewModel = viewModel()
+    authViewModel: AuthViewModel = viewModel(factory = provideViewModelFactory())
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }

@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.maps.model.LatLng
+import com.sitp.arequipa.di.provideViewModelFactory
 import com.sitp.arequipa.presentation.historial.HistorialViewModel
 
 private val BusRed      = Color(0xFFC62828)
@@ -145,7 +146,7 @@ fun parsearRespuestaIA(respuesta: String): RutaParseada {
         }
         .mapIndexed { i, s -> s.copy(numero = i + 1) }
 
-    val tiempo = Regex("""ESTIMACION[:\s]*([^,\n]*(?:minutos|min|hora)[^,\n]*)""", RegexOption.IGNORE_CASE)
+    val tiempo = Regex("""ESTIMACI[OÓ]N[:\s]*([^,\n]*(?:minutos|min|hora)[^,\n]*)""", RegexOption.IGNORE_CASE)
         .find(respuesta)?.groupValues?.get(1)?.trim() ?: ""
     val costo  = Regex("""S/\s*[\d.]+(?:\s*\([^)]*\))?""", RegexOption.IGNORE_CASE)
         .find(respuesta)?.value?.trim() ?: ""
@@ -166,8 +167,8 @@ fun BusquedaSheet(
     rutaColores: Map<String, String> = emptyMap(),
     rutaSentidos: Map<String, String> = emptyMap(),
     rutaEtiquetas: Map<String, String> = emptyMap(),
-    busquedaViewModel: BusquedaViewModel = viewModel(),
-    historialViewModel: HistorialViewModel = viewModel()
+    busquedaViewModel: BusquedaViewModel = viewModel(factory = provideViewModelFactory()),
+    historialViewModel: HistorialViewModel = viewModel(factory = provideViewModelFactory())
 ) {
     var preferencia   by remember { mutableStateOf("tiempo") }
     var consultaExtra by remember { mutableStateOf("") }

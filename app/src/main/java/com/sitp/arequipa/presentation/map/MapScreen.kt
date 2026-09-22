@@ -1,4 +1,4 @@
-﻿package com.sitp.arequipa.presentation.map
+package com.sitp.arequipa.presentation.map
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -53,7 +53,8 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapStyleOptions
-import com.google.firebase.firestore.FirebaseFirestore
+import com.sitp.arequipa.di.AppContainer
+import com.sitp.arequipa.di.provideViewModelFactory
 import com.google.maps.android.compose.*
 import com.sitp.arequipa.presentation.busqueda.BusquedaSheet
 import com.sitp.arequipa.presentation.comentarios.ComentariosSheet
@@ -63,8 +64,8 @@ import com.sitp.arequipa.presentation.comentarios.ComentarioState
 import com.sitp.arequipa.presentation.comentarios.ComentarioViewModel
 import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 // â”€â”€ Paleta â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -328,6 +329,7 @@ fun MapScreen(
     var rutasVisibles by remember { mutableStateOf<Set<String>>(emptySet()) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val routeRepository = remember { AppContainer.getInstance(context).routeRepository }
     var mapType by remember { mutableStateOf(MapType.NORMAL) }
     var rutasResaltadas by remember { mutableStateOf<Set<String>>(emptySet()) }
 
@@ -338,9 +340,9 @@ fun MapScreen(
     var modoSeleccion by remember { mutableStateOf<String?>(null) }
     var rutaDetalle by remember { mutableStateOf<RutaMapa?>(null) }
     var mostrarComentarios by remember { mutableStateOf(false) }
-    // Guarda la direcciÃ³n elegida por cada ruta: rutaId -> true (VUELTA) / false (IDA)
+    // Guarda la dirección elegida por cada ruta: rutaId -> true (VUELTA) / false (IDA)
     var direccionPorRuta by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
-    // Guarda las coordenadas seleccionadas para cada cÃ³digo recomendado en la bÃºsqueda activa
+    // Guarda las coordenadas seleccionadas para cada código recomendado en la búsqueda activa
     var coordsRecomendadas by remember { mutableStateOf<Map<String, List<Map<String, Double>>>>(emptyMap()) }
     var marcadoresRuta by remember { mutableStateOf<List<MarkerRutaGuia>>(emptyList()) }
     var marcadoresTransbordo by remember { mutableStateOf<List<LatLng>>(emptyList()) }
@@ -357,29 +359,36 @@ fun MapScreen(
     val rutasSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // â”€â”€ Carga rutas â€” ahora incluye coordenadasVuelta y avenidaVuelta â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Carga rutas desde Room SQLite (Offline-First) y sincroniza en segundo plano ──
     LaunchedEffect(Unit) {
-        FirebaseFirestore.getInstance().collection("rutas").get()
-            .addOnSuccessListener { snapshot ->
-                rutas = snapshot.documents.map { doc ->
-                    @Suppress("UNCHECKED_CAST")
+        // 1. Observar rutas desde Room SQLite de inmediato (funciona 100% offline)
+        launch {
+            routeRepository.obtenerRutas().collect { listaRutas ->
+                rutas = listaRutas.map { r ->
                     RutaMapa(
-                        id              = doc.id,
-                        nombre          = doc.getString("nombre")       ?: "",
-                        codigo          = doc.getString("codigo")        ?: "",
-                        empresa         = doc.getString("empresa")       ?: "Sin empresa",
-                        color           = doc.getString("color")         ?: "#FF0000",
-                        etiqueta        = doc.getString("etiqueta") ?: doc.getString("etiquetas") ?: "",
-                        avenidas        = doc.getString("avenidas")      ?: "",
-                        avenidaVuelta   = doc.getString("avenidaVuelta") ?: "",
-                        frecuencia      = doc.getString("frecuencia")    ?: "",
-                        coordenadas       = doc.get("coordenadas")
-                                as? List<Map<String, Double>> ?: emptyList(),
-                        coordenadasVuelta = doc.get("coordenadasVuelta")
-                                as? List<Map<String, Double>> ?: emptyList()
+                        id                = r.codigo,
+                        nombre            = r.nombre,
+                        codigo            = r.codigo,
+                        empresa           = r.empresa,
+                        color             = r.color,
+                        etiqueta          = r.etiqueta,
+                        avenidas          = r.avenidas,
+                        avenidaVuelta     = r.avenidaVuelta,
+                        frecuencia        = r.frecuencia,
+                        coordenadas       = r.coordsIda.map { mapOf("lat" to it.first, "lng" to it.second) },
+                        coordenadasVuelta = r.coordsVuelta.map { mapOf("lat" to it.first, "lng" to it.second) }
                     )
                 }
             }
+        }
+        // 2. Sincronizar en segundo plano si hay internet (con verificación inteligente de versiones)
+        launch {
+            try {
+                routeRepository.sincronizarConServidor()
+            } catch (e: Exception) {
+                println("DEBUG MapScreen: Error o sin conexión al sincronizar rutas: ${e.message}")
+            }
+        }
     }
 
     // â”€â”€ Recalcula tramos cuando rutas llega despuÃ©s de onRutaEncontrada â”€â”€â”€â”€â”€â”€
@@ -1383,10 +1392,9 @@ fun RutaDetalleSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var selectedTab by remember { mutableIntStateOf(0) }
-    val comentarioViewModel: ComentarioViewModel = viewModel()
+    val comentarioViewModel: ComentarioViewModel = viewModel(factory = provideViewModelFactory())
     val comentarios by comentarioViewModel.comentarios.collectAsState()
     val comentarioState by comentarioViewModel.comentarioState.collectAsState()
-    val user = FirebaseAuth.getInstance().currentUser
     var textoComentario by remember { mutableStateOf("") }
 
     LaunchedEffect(ruta.id) { comentarioViewModel.cargarComentarios(ruta.id) }
@@ -1572,8 +1580,8 @@ fun RutaDetalleSheet(
                             LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 200.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 items(comentarios) { comentario ->
-                                    val fecha = comentario.fecha?.toDate()?.let { ts ->
-                                        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(ts)
+                                    val fecha = comentario.fecha?.let {
+                                        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(it))
                                     } ?: ""
                                     Card(modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(10.dp),
@@ -1595,7 +1603,7 @@ fun RutaDetalleSheet(
                             }
                         }
                         HorizontalDivider(color = Color(0xFFEEEEEE))
-                        if (user != null) {
+                        if (comentarioViewModel.sesionActiva) {
                             Text("Deja tu opiniÃ³n:", fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold, color = Color(0xFF212121))
                             OutlinedTextField(

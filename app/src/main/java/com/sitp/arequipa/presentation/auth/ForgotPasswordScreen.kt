@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.sitp.arequipa.di.provideViewModelFactory
 
 // Paleta del sistema de diseño
 private val FPRed       = Color(0xFFC62828)
@@ -33,7 +34,7 @@ private val FPTextGray  = Color(0xFF757575)
 @Composable
 fun ForgotPasswordScreen(
     onBack: () -> Unit,
-    authViewModel: AuthViewModel = viewModel()
+    authViewModel: AuthViewModel = viewModel(factory = provideViewModelFactory())
 ) {
     var email by remember { mutableStateOf("") }
     val authState by authViewModel.authState.collectAsState()

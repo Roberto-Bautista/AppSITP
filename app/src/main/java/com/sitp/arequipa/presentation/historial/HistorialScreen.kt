@@ -12,15 +12,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.sitp.arequipa.di.provideViewModelFactory
+import com.sitp.arequipa.domain.model.BusquedaHistorial
+import com.sitp.arequipa.domain.model.RutaFavorita
 import java.text.SimpleDateFormat
 import java.util.*
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistorialScreen(
     onBack: () -> Unit,
     onRepetirBusqueda: (String, String, String) -> Unit = { _, _, _ -> },
-    historialViewModel: HistorialViewModel = viewModel(),
+    historialViewModel: HistorialViewModel = viewModel(factory = provideViewModelFactory()),
     externalSnackbarHostState: SnackbarHostState? = null
 ) {
     val historial by historialViewModel.historial.collectAsState()
@@ -117,8 +121,8 @@ fun BusquedaCard(
     onEliminar: () -> Unit,
     onRepetir: () -> Unit
 ) {
-    val fechaFormateada = busqueda.fecha?.toDate()?.let {
-        SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(it)
+    val fechaFormateada = busqueda.fecha?.let {
+        SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(it))
     } ?: ""
 
     val preferenciaTexto = when (busqueda.preferencia) {
@@ -189,8 +193,8 @@ fun FavoritoCard(
     onEliminar: () -> Unit,
     onRepetir: () -> Unit
 ) {
-    val fechaFormateada = favorito.fechaUltimoUso?.toDate()?.let {
-        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(it)
+    val fechaFormateada = favorito.fechaUltimoUso?.let {
+        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(it))
     } ?: ""
 
     Card(modifier = Modifier.fillMaxWidth()) {
