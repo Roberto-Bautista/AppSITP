@@ -7,6 +7,8 @@ data class Ruta(
     val avenidas: String,
     val avenidaVuelta: String,
     val color: String,
+    val etiqueta: String = "",
+    val frecuencia: String = "",
     val coordsIda: List<Pair<Double, Double>>,
     val coordsVuelta: List<Pair<Double, Double>>
 )
